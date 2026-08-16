@@ -380,7 +380,7 @@ export class GamesService {
       trimmed === currentName ||
       (!/[0-9]+$/.test(trimmed) && trimmed === this.playerNameBase(currentName))
     ) {
-      return trimmed;
+      return currentName;
     }
     return this.ensurePlayerNameSuffix(trimmed);
   }

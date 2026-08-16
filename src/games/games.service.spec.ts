@@ -338,7 +338,7 @@ describe("GamesService", () => {
     expect(renamed.player.name).toBe("Luca1234");
   });
 
-  it("keeps the base name when renaming to the current name without its number", async () => {
+  it("keeps the current name when renaming to its base name without the number", async () => {
     const randomSpy = jest.spyOn(Math, "random");
     await register("Luca1234");
     const created = await service.create({ playerName: "Luca1234", fen: START_FEN });
@@ -350,7 +350,7 @@ describe("GamesService", () => {
 
     expect(randomSpy).not.toHaveBeenCalled();
     randomSpy.mockRestore();
-    expect(renamed.player.name).toBe("Luca");
+    expect(renamed.player.name).toBe("Luca1234");
   });
 
   it("uses repository storage for registered players", async () => {
