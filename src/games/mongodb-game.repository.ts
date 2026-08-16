@@ -47,6 +47,39 @@ export class MongodbGameRepository
     return documents.map((document) => this.toGame(document)!);
   }
 
+  async listOpenForPlayer(
+    playerId?: string,
+    playerName?: string
+  ): Promise<Game[]> {
+    const playerFilters = [
+      ...(playerId
+        ? [
+            { "players.white.id": playerId },
+            { "players.black.id": playerId },
+          ]
+        : []),
+      ...(playerName
+        ? [
+            { "players.white.name": playerName },
+            { "players.black.name": playerName },
+          ]
+        : []),
+    ];
+    if (!playerFilters.length) {
+      return [];
+    }
+
+    const collection = await this.writeCollection();
+    const documents = await collection
+      .find({
+        status: { $ne: "finished" },
+        $or: playerFilters,
+      })
+      .sort({ updatedAt: -1 })
+      .toArray();
+    return documents.map((document) => this.toGame(document)!);
+  }
+
   async update(game: Game): Promise<Game> {
     const collection = await this.writeCollection();
     await collection.replaceOne({ _id: game.id }, this.toDocument(game), {
@@ -134,9 +167,13 @@ export class MongodbGameRepository
 
   private ensureIndexes(collection: Collection<GameDocument>): Promise<void> {
     if (!this.indexesReady) {
-      this.indexesReady = collection
-        .createIndex({ status: 1, createdAt: 1 })
-        .then(() => undefined);
+      this.indexesReady = Promise.all([
+        collection.createIndex({ status: 1, createdAt: 1 }),
+        collection.createIndex({ status: 1, "players.white.id": 1 }),
+        collection.createIndex({ status: 1, "players.black.id": 1 }),
+        collection.createIndex({ status: 1, "players.white.name": 1 }),
+        collection.createIndex({ status: 1, "players.black.name": 1 }),
+      ]).then(() => undefined);
     }
     return this.indexesReady;
   }

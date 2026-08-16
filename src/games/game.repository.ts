@@ -6,6 +6,7 @@ export interface GameRepository {
   create(game: Game): Promise<Game>;
   findById(id: string): Promise<Game | undefined>;
   listWaiting(): Promise<Game[]>;
+  listOpenForPlayer(playerId?: string, playerName?: string): Promise<Game[]>;
   update(game: Game): Promise<Game>;
   findRegisteredPlayerByName(
     name: string

@@ -5,6 +5,7 @@ import {
   MessageEvent,
   Param,
   Post,
+  Query,
   Sse,
   UseGuards,
 } from "@nestjs/common";
@@ -32,8 +33,11 @@ export class GamesController {
   }
 
   @Get("games")
-  listWaiting() {
-    return this.gamesService.listWaiting();
+  listWaiting(
+    @Query("playerId") playerId?: string,
+    @Query("playerName") playerName?: string
+  ) {
+    return this.gamesService.listGames(playerId, playerName);
   }
 
   @Get("games/:id")

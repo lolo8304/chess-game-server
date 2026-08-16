@@ -59,8 +59,17 @@ export class GamesService {
     return { game: created, playerId: player.id, color: player.color };
   }
 
+  async listGames(playerId?: string, playerName?: string): Promise<Game[]> {
+    const waitingGames = await this.repository.listWaiting();
+    const playerGames = await this.repository.listOpenForPlayer(
+      playerId?.trim() || undefined,
+      playerName?.trim() || undefined
+    );
+    return this.uniqueGames([...waitingGames, ...playerGames]);
+  }
+
   async listWaiting(): Promise<Game[]> {
-    return this.repository.listWaiting();
+    return this.listGames();
   }
 
   async find(id: string): Promise<Game> {
@@ -355,6 +364,10 @@ export class GamesService {
 
   private message(game: Game): MessageEvent {
     return { type: "game", data: game } as MessageEvent;
+  }
+
+  private uniqueGames(games: Game[]): Game[] {
+    return [...new Map(games.map((game) => [game.id, game])).values()];
   }
 
   private logGameCreated(game: Game, player: Player): void {
