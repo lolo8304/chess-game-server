@@ -7,11 +7,13 @@ const START_FEN =
 
 describe("GamesService", () => {
   let service: GamesService;
+  let repository: MemoryGameRepository;
   let logSpy: jest.SpyInstance;
 
   beforeEach(() => {
     logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
-    service = new GamesService(new MemoryGameRepository());
+    repository = new MemoryGameRepository();
+    service = new GamesService(repository);
   });
 
   afterEach(() => {
@@ -227,6 +229,19 @@ describe("GamesService", () => {
       registeredAt: first.player.registeredAt,
       lastConnectedAt: reconnected.player.lastConnectedAt,
     });
+  });
+
+  it("uses repository storage for registered players", async () => {
+    const registered = await service.registerPlayer({ name: "Luca1234" });
+    const restartedService = new GamesService(repository);
+
+    const created = await restartedService.create({
+      playerName: "Luca1234",
+      fen: START_FEN,
+    });
+
+    expect(created.playerId).toBe(registered.player.id);
+    expect(created.game.players.white?.id).toBe(registered.player.id);
   });
 
   it("rejects game creation with an unregistered player name", async () => {
