@@ -32,16 +32,15 @@ export class GamesService {
   private readonly logger = new Logger(GamesService.name);
   private readonly subjects = new Map<string, Subject<Game>>();
   private readonly waitingGamesSubject = new Subject<Game[]>();
-  private readonly registeredPlayersByName = new Map<string, RegisteredPlayer>();
 
   constructor(
     @Inject(GAME_REPOSITORY) private readonly repository: GameRepository
   ) {}
 
   async create(input: CreateGameInput) {
-    this.assertRegisteredPlayerName(input.playerName);
+    await this.assertRegisteredPlayerName(input.playerName);
     const now = new Date().toISOString();
-    const player = this.newPlayer(input.playerName, "white", now);
+    const player = await this.newPlayer(input.playerName, "white", now);
     const game: Game = {
       id: randomUUID(),
       fen: input.fen || START_FEN,
@@ -69,7 +68,7 @@ export class GamesService {
   }
 
   async join(id: string, input: JoinGameInput) {
-    this.assertRegisteredPlayerName(input.playerName);
+    await this.assertRegisteredPlayerName(input.playerName);
     const game = await this.mustFind(id);
     if (game.players.black) {
       throw new BadRequestException("Game already has two players");
@@ -78,7 +77,7 @@ export class GamesService {
       throw new BadRequestException("Game has no white player");
     }
     const now = new Date().toISOString();
-    const player = this.newPlayer(input.playerName, "black", now);
+    const player = await this.newPlayer(input.playerName, "black", now);
     game.players.black = player;
     const updated = await this.startGame(game, player, now);
     this.publish(updated);
@@ -114,13 +113,13 @@ export class GamesService {
     if (!name) {
       throw new BadRequestException("Player name is required");
     }
-    const existing = this.registeredPlayersByName.get(name);
+    const existing = await this.repository.findRegisteredPlayerByName(name);
     if (existing) {
       if (input.playerId && existing.id === input.playerId) {
         existing.lastConnectedAt = new Date().toISOString();
-        this.registeredPlayersByName.set(name, existing);
+        const updated = await this.repository.updateRegisteredPlayer(existing);
         this.logPlayerConnected(existing);
-        return { player: existing };
+        return { player: updated };
       }
       throw new ConflictException("Player name is already registered");
     }
@@ -132,15 +131,15 @@ export class GamesService {
       registeredAt: now,
       lastConnectedAt: now,
     };
-    this.registeredPlayersByName.set(name, player);
+    const created = await this.repository.createRegisteredPlayer(player);
     this.logger.log({
       event: "player.registered",
-      playerId: player.id,
-      playerName: player.name,
-      registeredAt: player.registeredAt,
-      lastConnectedAt: player.lastConnectedAt,
+      playerId: created.id,
+      playerName: created.name,
+      registeredAt: created.registeredAt,
+      lastConnectedAt: created.lastConnectedAt,
     });
-    return { player };
+    return { player: created };
   }
 
   async addMove(id: string, input: AddMoveInput) {
@@ -246,8 +245,14 @@ export class GamesService {
     return game;
   }
 
-  private newPlayer(name: string, color: PlayerColor, joinedAt: string): Player {
-    const registeredPlayer = this.registeredPlayersByName.get(name?.trim());
+  private async newPlayer(
+    name: string,
+    color: PlayerColor,
+    joinedAt: string
+  ): Promise<Player> {
+    const registeredPlayer = await this.repository.findRegisteredPlayerByName(
+      name?.trim()
+    );
     return {
       id: registeredPlayer?.id || randomUUID(),
       name: name?.trim() || "Player",
@@ -256,8 +261,11 @@ export class GamesService {
     };
   }
 
-  private assertRegisteredPlayerName(name: string): void {
-    if (!this.registeredPlayersByName.has(name?.trim())) {
+  private async assertRegisteredPlayerName(name: string): Promise<void> {
+    const registeredPlayer = await this.repository.findRegisteredPlayerByName(
+      name?.trim()
+    );
+    if (!registeredPlayer) {
       throw new BadRequestException("Player name is not registered");
     }
   }

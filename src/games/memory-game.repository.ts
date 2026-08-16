@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { GameRepository } from "./game.repository";
-import { Game } from "./game.types";
+import { Game, RegisteredPlayer } from "./game.types";
 
 @Injectable()
 export class MemoryGameRepository implements GameRepository {
   private readonly games = new Map<string, Game>();
+  private readonly registeredPlayersByName = new Map<string, RegisteredPlayer>();
 
   async create(game: Game): Promise<Game> {
     this.games.set(game.id, this.clone(game));
@@ -27,7 +28,28 @@ export class MemoryGameRepository implements GameRepository {
     return this.clone(game);
   }
 
-  private clone(game: Game): Game {
-    return JSON.parse(JSON.stringify(game)) as Game;
+  async findRegisteredPlayerByName(
+    name: string
+  ): Promise<RegisteredPlayer | undefined> {
+    const player = this.registeredPlayersByName.get(name);
+    return player ? this.clone(player) : undefined;
+  }
+
+  async createRegisteredPlayer(
+    player: RegisteredPlayer
+  ): Promise<RegisteredPlayer> {
+    this.registeredPlayersByName.set(player.name, this.clone(player));
+    return this.clone(player);
+  }
+
+  async updateRegisteredPlayer(
+    player: RegisteredPlayer
+  ): Promise<RegisteredPlayer> {
+    this.registeredPlayersByName.set(player.name, this.clone(player));
+    return this.clone(player);
+  }
+
+  private clone<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T;
   }
 }

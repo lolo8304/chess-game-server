@@ -33,5 +33,6 @@ headers.
 - `POST /games/:id/loose` aliases `lose`.
 - `GET /games/:id/events` streams game updates as `game` events.
 
-Storage is currently in memory behind `GameRepository`, so a MongoDB repository
-can be added later without changing the controller or frontend contract.
+Storage is behind `GameRepository`. The app uses MongoDB by default with
+`MONGODB_CONNECTION_STRING` and `MONGODB_DB_NAME`. MongoDB stores games in
+`games` and registered players in `registeredPlayers`.
