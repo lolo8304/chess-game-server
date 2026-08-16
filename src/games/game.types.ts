@@ -1,5 +1,5 @@
 export type PlayerColor = "white" | "black";
-export type GameStatus = "waiting" | "active" | "finished";
+export type GameStatus = "waiting" | "active" | "paused" | "finished";
 
 export interface Player {
   id: string;
@@ -37,6 +37,8 @@ export interface Game {
   status: GameStatus;
   winner?: PlayerColor;
   finishReason?: string;
+  pausedAt?: string;
+  pausedByPlayerId?: string;
   finishedAt?: string;
   finishedByPlayerId?: string;
   players: {
@@ -73,6 +75,10 @@ export interface StartGameInput {
   playerId?: string;
 }
 
+export interface PauseGameInput {
+  playerId: string;
+}
+
 export interface FinishGameInput {
   playerId: string;
   reason?: string;
@@ -81,4 +87,9 @@ export interface FinishGameInput {
 export interface RegisterPlayerInput {
   name: string;
   playerId?: string;
+}
+
+export interface RenamePlayerInput {
+  playerId: string;
+  name: string;
 }

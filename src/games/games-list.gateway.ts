@@ -22,6 +22,10 @@ export class GamesListGateway implements OnModuleDestroy {
     { playerId?: string; playerName?: string }
   >();
   private readonly gameSubscriptions = new Map<WebSocket, Subscription>();
+  private readonly keepAliveTimers = new Map<
+    WebSocket,
+    ReturnType<typeof setInterval>
+  >();
 
   constructor(private readonly gamesService: GamesService) {}
 
@@ -36,7 +40,11 @@ export class GamesListGateway implements OnModuleDestroy {
         playerId: url.searchParams.get("playerId") || undefined,
         playerName: url.searchParams.get("playerName") || undefined,
       });
-      socket.on("close", () => this.listClients.delete(socket));
+      this.startKeepAlive(socket);
+      socket.on("close", () => {
+        this.stopKeepAlive(socket);
+        this.listClients.delete(socket);
+      });
       this.sendGamesForSocket(socket);
     });
 
@@ -52,7 +60,11 @@ export class GamesListGateway implements OnModuleDestroy {
         .gameEvents(gameId)
         .subscribe((game) => this.sendGame(socket, game));
       this.gameSubscriptions.set(socket, subscription);
-      socket.on("close", () => this.closeGameSubscription(socket));
+      this.startKeepAlive(socket);
+      socket.on("close", () => {
+        this.stopKeepAlive(socket);
+        this.closeGameSubscription(socket);
+      });
     });
 
     this.upgradeHandler = (request, socket, head) => {
@@ -89,6 +101,8 @@ export class GamesListGateway implements OnModuleDestroy {
     this.waitingGamesSubscription?.unsubscribe();
     this.gameSubscriptions.forEach((subscription) => subscription.unsubscribe());
     this.gameSubscriptions.clear();
+    this.keepAliveTimers.forEach((timer) => clearInterval(timer));
+    this.keepAliveTimers.clear();
     if (this.upgradeHandler) {
       this.httpServer?.removeListener("upgrade", this.upgradeHandler);
     }
@@ -134,6 +148,26 @@ export class GamesListGateway implements OnModuleDestroy {
   ): void {
     if (socket.readyState !== WebSocket.OPEN) return;
     socket.send(JSON.stringify({ type: "game", game }));
+  }
+
+  private startKeepAlive(socket: WebSocket): void {
+    this.stopKeepAlive(socket);
+    this.keepAliveTimers.set(
+      socket,
+      setInterval(() => this.sendKeepAlive(socket), 1000)
+    );
+  }
+
+  private stopKeepAlive(socket: WebSocket): void {
+    const timer = this.keepAliveTimers.get(socket);
+    if (!timer) return;
+    clearInterval(timer);
+    this.keepAliveTimers.delete(socket);
+  }
+
+  private sendKeepAlive(socket: WebSocket): void {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: "keep-alive", at: Date.now() }));
   }
 
   private closeGameSubscription(socket: WebSocket): void {

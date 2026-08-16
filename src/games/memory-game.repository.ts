@@ -48,6 +48,15 @@ export class MemoryGameRepository implements GameRepository {
     return player ? this.clone(player) : undefined;
   }
 
+  async findRegisteredPlayerById(
+    id: string
+  ): Promise<RegisteredPlayer | undefined> {
+    const player = [...this.registeredPlayersByName.values()].find(
+      (registeredPlayer) => registeredPlayer.id === id
+    );
+    return player ? this.clone(player) : undefined;
+  }
+
   async createRegisteredPlayer(
     player: RegisteredPlayer
   ): Promise<RegisteredPlayer> {
@@ -58,6 +67,11 @@ export class MemoryGameRepository implements GameRepository {
   async updateRegisteredPlayer(
     player: RegisteredPlayer
   ): Promise<RegisteredPlayer> {
+    [...this.registeredPlayersByName.entries()].forEach(([name, stored]) => {
+      if (stored.id === player.id && name !== player.name) {
+        this.registeredPlayersByName.delete(name);
+      }
+    });
     this.registeredPlayersByName.set(player.name, this.clone(player));
     return this.clone(player);
   }
