@@ -1,0 +1,55 @@
+{
+  "name": "chess-game-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "test": "jest",
+    "maint:update": "ncu -u -t minor && npm install && npm audit fix && npm install"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.1",
+    "@nestjs/core": "^11.2.1",
+    "@nestjs/platform-express": "^11.2.1",
+    "dotenv": "^17.4.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/testing": "^11.2.1",
+    "@types/express": "^4.17.25",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.20.1",
+    "@types/ws": "^8.18.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "webpack": "^5.104.0",
+    "tmp": "^0.2.6",
+    "qs": "^6.15.2",
+    "picomatch": "^4.0.4"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.(t|j)s"
+    ],
+    "testEnvironment": "node"
+  }
+}
