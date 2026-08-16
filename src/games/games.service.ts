@@ -4,7 +4,6 @@ import {
   Inject,
   Injectable,
   Logger,
-  MessageEvent,
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "crypto";
@@ -228,15 +227,15 @@ export class GamesService {
     return { game: updated };
   }
 
-  events(id: string): Observable<MessageEvent> {
+  gameEvents(id: string): Observable<Game> {
     return new Observable((subscriber) => {
       this.repository.findById(id).then((game) => {
         if (game) {
-          subscriber.next(this.message(game));
+          subscriber.next(game);
         }
       });
       const subject = this.subjectFor(id).subscribe((game) => {
-        subscriber.next(this.message(game));
+        subscriber.next(game);
       });
       return () => subject.unsubscribe();
     });
@@ -360,10 +359,6 @@ export class GamesService {
       this.subjects.set(gameId, subject);
     }
     return subject;
-  }
-
-  private message(game: Game): MessageEvent {
-    return { type: "game", data: game } as MessageEvent;
   }
 
   private uniqueGames(games: Game[]): Game[] {

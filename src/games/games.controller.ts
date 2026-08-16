@@ -2,14 +2,11 @@ import {
   Body,
   Controller,
   Get,
-  MessageEvent,
   Param,
   Post,
   Query,
-  Sse,
   UseGuards,
 } from "@nestjs/common";
-import { Observable } from "rxjs";
 import { ApiKeyGuard } from "./api-key.guard";
 import { GamesService } from "./games.service";
 import {
@@ -90,8 +87,4 @@ export class GamesController {
     return this.gamesService.lose(id, input);
   }
 
-  @Sse("games/:id/events")
-  events(@Param("id") id: string): Observable<MessageEvent> {
-    return this.gamesService.events(id);
-  }
 }
