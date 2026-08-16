@@ -23,6 +23,19 @@ export class MemoryGameRepository implements GameRepository {
       .map((game) => this.clone(game));
   }
 
+  async listOpenForPlayer(
+    playerId?: string,
+    playerName?: string
+  ): Promise<Game[]> {
+    return [...this.games.values()]
+      .filter(
+        (game) =>
+          game.status !== "finished" &&
+          this.hasPlayer(game, playerId, playerName)
+      )
+      .map((game) => this.clone(game));
+  }
+
   async update(game: Game): Promise<Game> {
     this.games.set(game.id, this.clone(game));
     return this.clone(game);
@@ -51,5 +64,22 @@ export class MemoryGameRepository implements GameRepository {
 
   private clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
+  }
+
+  private hasPlayer(
+    game: Game,
+    playerId?: string,
+    playerName?: string
+  ): boolean {
+    const players = [game.players.white, game.players.black];
+    return players.some((player) => {
+      if (!player) {
+        return false;
+      }
+      return (
+        (playerId && player.id === playerId) ||
+        (playerName && player.name === playerName)
+      );
+    });
   }
 }

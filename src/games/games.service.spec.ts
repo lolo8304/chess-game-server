@@ -102,6 +102,42 @@ describe("GamesService", () => {
     expect(moved.game.moves).toHaveLength(1);
   });
 
+  it("lists open games where the player is white or black", async () => {
+    await register("Luca1");
+    await register("Emma2");
+    await register("Noah3");
+    const asWhite = await service.create({ playerName: "Luca1", fen: START_FEN });
+    const joinedAsBlack = await service.join(asWhite.game.id, {
+      playerName: "Emma2",
+    });
+    const asBlack = await service.create({ playerName: "Noah3", fen: START_FEN });
+    await service.join(asBlack.game.id, { playerName: "Luca1" });
+
+    const openGames = await service.listGames(joinedAsBlack.playerId, "Emma2");
+
+    expect(openGames.map((gameData) => gameData.id)).toContain(asWhite.game.id);
+    expect(openGames.map((gameData) => gameData.id)).not.toContain(
+      asBlack.game.id
+    );
+  });
+
+  it("does not list finished player games", async () => {
+    await register("Luca1");
+    await register("Emma2");
+    const created = await service.create({ playerName: "Luca1", fen: START_FEN });
+    await service.join(created.game.id, { playerName: "Emma2" });
+    await service.win(created.game.id, {
+      playerId: created.playerId,
+      reason: "checkmate",
+    });
+
+    const openGames = await service.listGames(created.playerId, "Luca1");
+
+    expect(openGames.map((gameData) => gameData.id)).not.toContain(
+      created.game.id
+    );
+  });
+
   it("rejects moves before an opponent joins", async () => {
     await register("Luca1");
     const created = await service.create({ playerName: "Luca1", fen: START_FEN });
