@@ -210,7 +210,7 @@ export class GamesService {
     }
 
     const baseName = this.playerNameBase(requestedName);
-    let candidateName = this.ensurePlayerNameSuffix(requestedName);
+    let candidateName = this.renameCandidateName(requestedName, player.name);
     for (let attempt = 0; attempt < 20; attempt++) {
       const existing =
         await this.repository.findRegisteredPlayerByName(candidateName);
@@ -372,6 +372,17 @@ export class GamesService {
       return trimmed;
     }
     return `${trimmed}${this.randomPlayerNameSuffix()}`;
+  }
+
+  private renameCandidateName(requestedName: string, currentName: string): string {
+    const trimmed = requestedName.trim();
+    if (
+      trimmed === currentName ||
+      (!/[0-9]+$/.test(trimmed) && trimmed === this.playerNameBase(currentName))
+    ) {
+      return trimmed;
+    }
+    return this.ensurePlayerNameSuffix(trimmed);
   }
 
   private randomPlayerNameSuffix(): number {
