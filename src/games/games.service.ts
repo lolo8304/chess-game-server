@@ -15,10 +15,12 @@ import {
   FinishGameInput,
   Game,
   JoinGameInput,
+  PauseGameInput,
   Player,
   PlayerColor,
   RegisteredPlayer,
   RegisterPlayerInput,
+  RenamePlayerInput,
   ResignGameInput,
   StartGameInput,
 } from "./game.types";
@@ -116,6 +118,48 @@ export class GamesService {
     return { game: updated };
   }
 
+  async pause(id: string, input: PauseGameInput) {
+    const game = await this.mustFind(id);
+    const player = this.assertActivePlayer(game, input.playerId);
+    const now = new Date().toISOString();
+    game.status = "paused";
+    game.pausedAt = now;
+    game.pausedByPlayerId = player.id;
+    game.version += 1;
+    game.updatedAt = now;
+    const updated = await this.repository.update(game);
+    this.publish(updated);
+    await this.publishWaitingGames();
+    return { game: updated };
+  }
+
+  async resume(id: string, input: PauseGameInput) {
+    const game = await this.mustFind(id);
+    if (game.status === "finished") {
+      throw new BadRequestException("Game is already finished");
+    }
+    if (game.status === "active") {
+      return { game };
+    }
+    if (game.status !== "paused") {
+      throw new BadRequestException("Game is not paused");
+    }
+    const player = this.playerById(game, input.playerId);
+    if (!player) {
+      throw new BadRequestException("Player is not in this game");
+    }
+    const now = new Date().toISOString();
+    game.status = "active";
+    game.pausedAt = undefined;
+    game.pausedByPlayerId = undefined;
+    game.version += 1;
+    game.updatedAt = now;
+    const updated = await this.repository.update(game);
+    this.publish(updated);
+    await this.publishWaitingGames();
+    return { game: updated };
+  }
+
   async registerPlayer(input: RegisterPlayerInput) {
     const name = input.name?.trim();
     if (!name) {
@@ -148,6 +192,40 @@ export class GamesService {
       lastConnectedAt: created.lastConnectedAt,
     });
     return { player: created };
+  }
+
+  async renamePlayer(input: RenamePlayerInput) {
+    const playerId = input.playerId?.trim();
+    if (!playerId) {
+      throw new BadRequestException("Player id is required");
+    }
+    const requestedName = input.name?.trim();
+    if (!requestedName) {
+      throw new BadRequestException("Player name is required");
+    }
+
+    const player = await this.repository.findRegisteredPlayerById(playerId);
+    if (!player) {
+      throw new NotFoundException("Player not found");
+    }
+
+    const baseName = this.playerNameBase(requestedName);
+    let candidateName = this.ensurePlayerNameSuffix(requestedName);
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const existing =
+        await this.repository.findRegisteredPlayerByName(candidateName);
+      if (!existing || existing.id === player.id) {
+        const now = new Date().toISOString();
+        player.name = candidateName;
+        player.lastConnectedAt = now;
+        const updated = await this.repository.updateRegisteredPlayer(player);
+        await this.renameOpenGamePlayers(updated);
+        return { player: updated };
+      }
+      candidateName = `${baseName}${this.randomPlayerNameSuffix()}`;
+    }
+
+    throw new ConflictException("Could not register a unique player name");
   }
 
   async addMove(id: string, input: AddMoveInput) {
@@ -282,6 +360,45 @@ export class GamesService {
     return [game.players.white, game.players.black].find(
       (player) => player?.id === playerId
     );
+  }
+
+  private playerNameBase(name: string): string {
+    return name.trim().replace(/[0-9]+$/, "") || "Player";
+  }
+
+  private ensurePlayerNameSuffix(name: string): string {
+    const trimmed = name.trim();
+    if (/[0-9]+$/.test(trimmed)) {
+      return trimmed;
+    }
+    return `${trimmed}${this.randomPlayerNameSuffix()}`;
+  }
+
+  private randomPlayerNameSuffix(): number {
+    return Math.floor(Math.random() * (9999 - 1111 + 1)) + 1111;
+  }
+
+  private async renameOpenGamePlayers(player: RegisteredPlayer): Promise<void> {
+    const openGames = await this.repository.listOpenForPlayer(player.id);
+    await Promise.all(
+      openGames.map(async (game) => {
+        let changed = false;
+        (["white", "black"] as PlayerColor[]).forEach((color) => {
+          const gamePlayer = game.players[color];
+          if (gamePlayer?.id === player.id && gamePlayer.name !== player.name) {
+            gamePlayer.name = player.name;
+            changed = true;
+          }
+        });
+        if (!changed) {
+          return;
+        }
+        game.updatedAt = new Date().toISOString();
+        const updated = await this.repository.update(game);
+        this.publish(updated);
+      })
+    );
+    await this.publishWaitingGames();
   }
 
   private assertActivePlayer(game: Game, playerId: string): Player {

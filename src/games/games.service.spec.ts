@@ -243,6 +243,36 @@ describe("GamesService", () => {
     });
   });
 
+  it("pauses an active game and blocks moves until it is resumed", async () => {
+    await register("Luca1");
+    await register("Emma2");
+    const created = await service.create({ playerName: "Luca1", fen: START_FEN });
+    await service.join(created.game.id, { playerName: "Emma2" });
+
+    const paused = await service.pause(created.game.id, {
+      playerId: created.playerId,
+    });
+
+    expect(paused.game.status).toBe("paused");
+    expect(paused.game.pausedByPlayerId).toBe(created.playerId);
+    expect(paused.game.pausedAt).toBeDefined();
+    await expect(
+      service.addMove(created.game.id, {
+        playerId: created.playerId,
+        move: { from: 52, to: 36 },
+        fen: START_FEN,
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const resumed = await service.resume(created.game.id, {
+      playerId: created.playerId,
+    });
+
+    expect(resumed.game.status).toBe("active");
+    expect(resumed.game.pausedAt).toBeUndefined();
+    expect(resumed.game.pausedByPlayerId).toBeUndefined();
+  });
+
   it("registers player names uniquely", async () => {
     const first = await service.registerPlayer({ name: "Luca1234" });
 
@@ -265,6 +295,32 @@ describe("GamesService", () => {
       registeredAt: first.player.registeredAt,
       lastConnectedAt: reconnected.player.lastConnectedAt,
     });
+  });
+
+  it("renames a player with server-side suffix retries and updates open games", async () => {
+    const randomSpy = jest
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.5);
+    await register("Luca1234");
+    await register("Emma2");
+    const created = await service.create({ playerName: "Luca1234", fen: START_FEN });
+    await service.join(created.game.id, { playerName: "Emma2" });
+    await service.registerPlayer({ name: "Rename1111" });
+
+    const renamed = await service.renamePlayer({
+      playerId: created.playerId,
+      name: "Rename",
+    });
+
+    randomSpy.mockRestore();
+    expect(renamed.player).toMatchObject({
+      id: created.playerId,
+      name: "Rename5555",
+    });
+    const updatedGame = await service.find(created.game.id);
+    expect(updatedGame.players.white?.id).toBe(created.playerId);
+    expect(updatedGame.players.white?.name).toBe("Rename5555");
   });
 
   it("uses repository storage for registered players", async () => {

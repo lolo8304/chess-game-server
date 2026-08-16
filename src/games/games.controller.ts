@@ -14,7 +14,9 @@ import {
   CreateGameInput,
   FinishGameInput,
   JoinGameInput,
+  PauseGameInput,
   RegisterPlayerInput,
+  RenamePlayerInput,
   ResignGameInput,
   StartGameInput,
 } from "./game.types";
@@ -52,6 +54,11 @@ export class GamesController {
     return this.gamesService.registerPlayer(input);
   }
 
+  @Post("players/rename")
+  renamePlayer(@Body() input: RenamePlayerInput) {
+    return this.gamesService.renamePlayer(input);
+  }
+
   @Post("games/:id/join")
   join(@Param("id") id: string, @Body() input: JoinGameInput) {
     return this.gamesService.join(id, input);
@@ -60,6 +67,16 @@ export class GamesController {
   @Post("games/:id/start")
   start(@Param("id") id: string, @Body() input: StartGameInput) {
     return this.gamesService.start(id, input);
+  }
+
+  @Post("games/:id/pause")
+  pause(@Param("id") id: string, @Body() input: PauseGameInput) {
+    return this.gamesService.pause(id, input);
+  }
+
+  @Post("games/:id/resume")
+  resume(@Param("id") id: string, @Body() input: PauseGameInput) {
+    return this.gamesService.resume(id, input);
   }
 
   @Post("games/:id/moves")

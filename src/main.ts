@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { GamesListGateway } from "./games/games-list.gateway";
 import { ExpressAdapter, NestExpressApplication } from "@nestjs/platform-express";
+import { createServer, Server as HttpServer } from "http";
 import express = require("express");
 
 const allowedOrigins = new Set([
@@ -10,7 +11,13 @@ const allowedOrigins = new Set([
   "https://chess-coding-challenge.vercel.app",
 ]);
 
-async function createApp(expressInstance: express.Express) {
+interface ApiServer {
+  expressApp: express.Express;
+  httpServer: HttpServer;
+}
+
+async function createApp(expressInstance: express.Express): Promise<ApiServer> {
+  const httpServer = createServer(expressInstance);
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(expressInstance)
@@ -29,14 +36,14 @@ async function createApp(expressInstance: express.Express) {
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["content-type", "x-api-key"],
   });
-  app.get(GamesListGateway).attach(app.getHttpServer());
+  app.get(GamesListGateway).attach(httpServer);
   await app.init();
-  return expressInstance;
+  return { expressApp: expressInstance, httpServer };
 }
 
-let cachedServer: Promise<express.Express>;
+let cachedServer: Promise<ApiServer>;
 
-async function getServer(): Promise<express.Express> {
+async function getServer(): Promise<ApiServer> {
   if (!cachedServer) {
     cachedServer = createApp(express());
   }
@@ -46,7 +53,7 @@ async function getServer(): Promise<express.Express> {
 async function bootstrap() {
   const port = process.env.PORT || 3000;
   const server = await getServer();
-  server.listen(port);
+  server.httpServer.listen(port);
 }
 
 export default async function handler(
@@ -54,7 +61,7 @@ export default async function handler(
   res: express.Response
 ) {
   const server = await getServer();
-  return server(req, res);
+  return server.expressApp(req, res);
 }
 
 if (!process.env.VERCEL) {

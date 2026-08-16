@@ -96,6 +96,14 @@ export class MongodbGameRepository
     return this.toRegisteredPlayer(document);
   }
 
+  async findRegisteredPlayerById(
+    id: string
+  ): Promise<RegisteredPlayer | undefined> {
+    const collection = await this.writeRegisteredPlayersCollection();
+    const document = await collection.findOne({ _id: id });
+    return this.toRegisteredPlayer(document);
+  }
+
   async createRegisteredPlayer(
     player: RegisteredPlayer
   ): Promise<RegisteredPlayer> {

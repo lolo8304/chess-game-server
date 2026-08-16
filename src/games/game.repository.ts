@@ -11,6 +11,7 @@ export interface GameRepository {
   findRegisteredPlayerByName(
     name: string
   ): Promise<RegisteredPlayer | undefined>;
+  findRegisteredPlayerById(id: string): Promise<RegisteredPlayer | undefined>;
   createRegisteredPlayer(player: RegisteredPlayer): Promise<RegisteredPlayer>;
   updateRegisteredPlayer(player: RegisteredPlayer): Promise<RegisteredPlayer>;
 }
