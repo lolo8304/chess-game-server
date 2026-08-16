@@ -323,6 +323,36 @@ describe("GamesService", () => {
     expect(updatedGame.players.white?.name).toBe("Rename5555");
   });
 
+  it("keeps the same player name when renaming to the current name", async () => {
+    const randomSpy = jest.spyOn(Math, "random");
+    await register("Luca1234");
+    const created = await service.create({ playerName: "Luca1234", fen: START_FEN });
+
+    const renamed = await service.renamePlayer({
+      playerId: created.playerId,
+      name: "Luca1234",
+    });
+
+    expect(randomSpy).not.toHaveBeenCalled();
+    randomSpy.mockRestore();
+    expect(renamed.player.name).toBe("Luca1234");
+  });
+
+  it("keeps the base name when renaming to the current name without its number", async () => {
+    const randomSpy = jest.spyOn(Math, "random");
+    await register("Luca1234");
+    const created = await service.create({ playerName: "Luca1234", fen: START_FEN });
+
+    const renamed = await service.renamePlayer({
+      playerId: created.playerId,
+      name: "Luca",
+    });
+
+    expect(randomSpy).not.toHaveBeenCalled();
+    randomSpy.mockRestore();
+    expect(renamed.player.name).toBe("Luca");
+  });
+
   it("uses repository storage for registered players", async () => {
     const registered = await service.registerPlayer({ name: "Luca1234" });
     const restartedService = new GamesService(repository);
